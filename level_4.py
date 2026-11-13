@@ -4,6 +4,8 @@ from common import MODEL
 from prompts import LEVEL_4_INSTRUCTIONS
 from agents import Agent, Runner, ModelSettings
 from agents import ToolCallItem, ToolCallOutputItem
+from agents import SQLiteSession
+from pathlib import Path
 from expense_tools import (
     add_expense,
     list_recent_expenses,
@@ -29,6 +31,10 @@ agent = Agent(
     )
 )
 
+DB_PATH = Path(__file__).resolve().parent / "data" / "chat_history.db"
+
+session = SQLiteSession("family_001", DB_PATH)
+
 # ===== 測試區 =====
 
 while True:
@@ -43,17 +49,8 @@ while True:
         + f"\n今天日期是 {date.today().isoformat()}。"
     )
 
-    result = Runner.run_sync(agent, user_input)
-
-    # for item in result.new_items:
-    #     if isinstance(item, ToolCallItem):
-    #         print("呼叫工具：", item.raw_item.name)
-    #         print("工具參數：", item.raw_item.arguments)
-    #     elif isinstance(item, ToolCallOutputItem):
-    #         print("工具結果：", item.output)
-
-    print(result.final_output)
-
-    # usage = result.context_wrapper.usage
-    # print("Total tokens:", usage.total_tokens)
-    # print("API requests:", usage.requests)
+    result = Runner.run_sync(
+    agent,
+    user_input,
+    session=session
+)

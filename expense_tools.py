@@ -50,11 +50,25 @@ def add_expense(
     }
     
      # 3. 寫入 CSV
+    is_new_file = (
+    not CSV_PATH.exists()
+    or CSV_PATH.stat().st_size == 0
+)
+
     with open(CSV_PATH, "a", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=["date", "member", "category", "item", "amount"]
+            fieldnames=[
+                "date",
+                "member",
+                "category",
+                "item",
+                "amount"
+            ]
         )
+
+        if is_new_file:
+            writer.writeheader()
 
         writer.writerow(expense)
     # 4. 回傳新增的帳目
@@ -157,7 +171,8 @@ def monthly_summary(month: str) -> dict:
 @function_tool
 def member_summary() -> dict:
     """
-    統計每位家庭成員的累積總花費。
+    統計帳本中每位家庭成員的全期間累計花費。
+    不支援依月份或日期篩選。
     """
     # 1. 建立空字典
     members = {}
