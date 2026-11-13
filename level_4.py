@@ -1,6 +1,8 @@
 import json
+import os
+from agents import function_tool,FileSearchTool
 from datetime import date
-from common import MODEL
+from common import MODEL, VECTOR_STORE_ID
 from prompts import LEVEL_4_INSTRUCTIONS
 from agents import Agent, Runner, ModelSettings
 from agents import ToolCallItem, ToolCallOutputItem
@@ -14,6 +16,49 @@ from expense_tools import (
     member_summary
 )
 
+house_rules_tool = FileSearchTool(
+    vector_store_ids=[VECTOR_STORE_ID]
+)
+
+rules_agent = Agent(
+    name="家規搜尋助手",
+    model=MODEL,
+    instructions="""
+    使用 FileSearchTool 搜尋家規文件，
+    依照搜尋結果回答問題，不可自行編造家規。
+    """,
+    tools=[house_rules_tool],
+    model_settings=ModelSettings(
+        tool_choice="required",
+        parallel_tool_calls=False
+    )
+)
+
+@function_tool
+async def search_house_rules(question: str) -> str:
+    """
+    搜尋家規文件，回答預算、零用錢及消費規則問題。
+
+    Args:
+        question: 需要查閱家規的問題。
+    """
+
+    print("【DEBUG】進入家規搜尋工具")
+    print("【DEBUG】搜尋問題：", question)
+
+    confirm = input(
+        "\n需要搜尋家規，是否允許？(y/n): "
+    ).strip().lower()
+
+    if confirm != "y":
+        return "使用者取消搜尋，不可編造家規。"
+
+    result = await Runner.run(
+        rules_agent,
+        question
+    )
+
+    return result.final_output
 
 agent = Agent(
     name="家庭記帳小管家",
@@ -24,7 +69,8 @@ agent = Agent(
         list_recent_expenses,
         delete_last_expense,
         monthly_summary,
-        member_summary
+        member_summary,
+        search_house_rules
     ],
     model_settings=ModelSettings(
         parallel_tool_calls=False
@@ -54,3 +100,4 @@ while True:
     user_input,
     session=session
 )
+    print(result.final_output)

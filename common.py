@@ -11,3 +11,5 @@ if not MODEL:
     raise RuntimeError("請設定 OPENAI_MODEL")
 
 client = OpenAI()
+
+VECTOR_STORE_ID = os.getenv("VECTOR_STORE_ID", "").strip()
