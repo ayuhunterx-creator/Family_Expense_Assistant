@@ -15,6 +15,12 @@ from expense_tools import (
     monthly_summary,
     member_summary
 )
+from common import MODEL, VECTOR_STORE_ID
+
+if not VECTOR_STORE_ID:
+    raise RuntimeError(
+        "請在 .env 設定 VECTOR_STORE_ID"
+    )
 
 house_rules_tool = FileSearchTool(
     vector_store_ids=[VECTOR_STORE_ID]
@@ -42,9 +48,6 @@ async def search_house_rules(question: str) -> str:
     Args:
         question: 需要查閱家規的問題。
     """
-
-    print("【DEBUG】進入家規搜尋工具")
-    print("【DEBUG】搜尋問題：", question)
 
     confirm = input(
         "\n需要搜尋家規，是否允許？(y/n): "

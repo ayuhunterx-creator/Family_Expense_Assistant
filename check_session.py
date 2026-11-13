@@ -5,7 +5,7 @@ from agents import SQLiteSession
 
 DB_PATH = Path(__file__).resolve().parent / "data" / "chat_history.db"
 
-session = SQLiteSession("family_debug", DB_PATH)
+session = SQLiteSession("family_001", DB_PATH)
 
 
 async def main():
