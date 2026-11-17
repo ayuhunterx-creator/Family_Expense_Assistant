@@ -202,3 +202,51 @@ def member_summary() -> dict:
     }
 
 
+@function_tool
+def monthly_member_summary(month: str) -> dict:
+    """統計指定月份每位家庭成員的花費。
+
+    Args:
+        month: 指定月份，格式為 YYYY-MM。
+    """
+    members = {}
+
+    with open(CSV_PATH, "r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        expenses = list(reader)
+
+    for expense in expenses:
+        if expense["date"][:7] == month:
+            member = expense["member"]
+            amount = int(expense["amount"])
+
+            if member not in members:
+                members[member] = 0
+
+            members[member] += amount
+
+    total = sum(members.values())
+
+    return {
+        "month": month,
+        "members": members,
+        "total": total,
+    }
+
+
+@function_tool
+def calculate_budget(budget: int, spent: int) -> dict:
+    """計算預算剩餘金額與超支狀態。
+
+    Args:
+        budget: 家規設定的預算金額。
+        spent: 帳本統計的實際支出金額。
+    """
+    remaining = budget - spent
+
+    return {
+        "budget": budget,
+        "spent": spent,
+        "remaining": remaining,
+        "is_over_budget": remaining < 0,
+    }

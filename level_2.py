@@ -7,7 +7,7 @@ previous_response_id = None
 while True:
     user_input = input("You: ")
 
-    if user_input == "結束":
+    if user_input in ("結束", "exit"):
         break
 
     response = client.responses.create(

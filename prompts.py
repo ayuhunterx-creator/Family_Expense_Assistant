@@ -1,6 +1,4 @@
 
-
-
 BASE_INSTRUCTIONS = """
 你是家庭記帳小管家，個性是毒舌理財師。
 
@@ -46,3 +44,12 @@ LEVEL_4_INSTRUCTIONS = LEVEL_3_INSTRUCTIONS + """
 4. 回答時引用家規內容，查無規則時不得自行編造。
 5. 使用者取消搜尋時，停止搜尋並告知無法確認家規。
 """
+
+
+from datetime import date
+
+def get_instructions_with_date(instructions: str) -> str:
+    return (
+        instructions
+        + f"\n今天日期是 {date.today().isoformat()}。"
+    )

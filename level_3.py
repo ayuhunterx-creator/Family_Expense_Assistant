@@ -1,7 +1,7 @@
 import json
 from datetime import date
 from common import MODEL
-from prompts import LEVEL_3_INSTRUCTIONS
+from prompts import LEVEL_3_INSTRUCTIONS, get_instructions_with_date
 from agents import Agent, Runner, ModelSettings
 from agents import ToolCallItem, ToolCallOutputItem
 from expense_tools import (
@@ -34,14 +34,11 @@ agent = Agent(
 while True:
     user_input = input("You: ")
 
-    if user_input == "結束":
+    if user_input in ("結束", "exit"):
         break
 
     # 每次執行前更新今天日期
-    agent.instructions = (
-        LEVEL_3_INSTRUCTIONS
-        + f"\n今天日期是 {date.today().isoformat()}。"
-    )
+    agent.instructions = get_instructions_with_date(LEVEL_3_INSTRUCTIONS)
 
     result = Runner.run_sync(agent, user_input)
 
