@@ -5,6 +5,7 @@ from rules_tools import search_house_rules
 from common import MODEL
 from pathlib import Path
 from prompts import get_instructions_with_date
+from agents import ToolCallItem, ToolCallOutputItem, HandoffCallItem
 
 
 accountant_agent = Agent(
@@ -26,14 +27,14 @@ analyst_agent = Agent(
     model=MODEL,
     instructions="""你是分析師，負責統計與比較家庭花費。
 所有統計數字必須來自工具，不可自行編造。
-指定月份的家庭成員統計必須使用 monthly_member_summary。
-全期間的家庭成員統計使用 member_summary。
+分類統計使用 category_summary。
+家庭成員統計使用 member_summary。
+需要指定月份時，傳入 YYYY-MM；全期間統計不傳月份。
 完成分析後，提供一句簡短觀察。""",
     handoff_description="處理每月花費、分類統計、家庭成員消費比較等分析需求。",
     tools=[
-        expense_tools.monthly_summary,
+        expense_tools.category_summary,
         expense_tools.member_summary,
-        expense_tools.monthly_member_summary,
     ],
 )
 
@@ -43,10 +44,10 @@ budget_agent = Agent(
     instructions="""你是家庭預算管家，負責家庭預算、零用錢、大筆消費及家規問題。
 工具使用規則：
 1. 涉及家規時，必須呼叫 search_house_rules；使用者取消搜尋時，不得推測或編造家規。
-2. 涉及實際支出時，必須呼叫 monthly_summary，不得編造帳本金額。
+2. 涉及實際支出時，必須呼叫 category_summary，不得編造帳本金額。
 3. 計算剩餘預算或超支情況時，依序執行：
    - search_house_rules：取得家規預算。
-   - monthly_summary：取得指定月份的實際支出。
+   - category_summary：取得指定月份的實際支出。
    - calculate_budget：計算剩餘金額與超支狀態。
 
 回答規則：
@@ -58,7 +59,7 @@ budget_agent = Agent(
     handoff_description="處理預算、零用錢、大筆消費及家規相關需求。",
     tools=[
         search_house_rules,
-        expense_tools.monthly_summary,
+        expense_tools.category_summary,
         expense_tools.calculate_budget,
     ],
 )
@@ -69,15 +70,16 @@ saving_coach_agent = Agent(
     model=MODEL,
     instructions="""你是家庭省錢教練。
 根據實際消費資料，提供具體可行的省錢建議。
-分析消費分類時使用 monthly_summary。
-分析家庭成員支出時使用 monthly_member_summary。
+分析消費分類時使用 category_summary。
+分析家庭成員支出時使用 member_summary。
+需要指定月份時，傳入 YYYY-MM；全期間統計不傳月份。
 所有金額必須來自工具，不可自行編造。
 每次最多提供三項具體省錢建議。
 不負責新增、修改、刪除帳目，也不負責核准消費。""",
     handoff_description="處理省錢方法、節省開銷、改善消費習慣等建議需求。",
     tools=[
-        expense_tools.monthly_summary,
-        expense_tools.monthly_member_summary,
+        expense_tools.category_summary,
+        expense_tools.member_summary,
     ],
 )
 
@@ -130,6 +132,16 @@ def main():
             user_input,
             session=session
         )
+
+        # for item in result.new_items:
+        #     if isinstance(item, ToolCallItem):
+        #         print("呼叫工具：", getattr(item.raw_item, "name", "內建工具"))
+
+        #     elif isinstance(item, ToolCallOutputItem):
+        #         print("工具回傳：", item.output)
+
+        #     elif isinstance(item, HandoffCallItem):
+        #         print("Handoff：", item.raw_item.name)
 
         print("回答的 Agent：", result.last_agent.name)
         print(result.final_output)

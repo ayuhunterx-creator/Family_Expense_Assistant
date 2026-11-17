@@ -1,5 +1,4 @@
 import csv
-import json
 from pathlib import Path
 from datetime import date
 from typing import Literal
@@ -17,6 +16,32 @@ Category = Literal[
 ]
 
 
+# ---------- 共用 CSV 讀取函式 ----------
+def read_expenses() -> list[dict]:
+    """讀取所有帳目，並將金額轉換為整數。"""
+    with open(CSV_PATH, "r", encoding="utf-8", newline="") as f:
+        expenses = list(csv.DictReader(f))
+
+    for expense in expenses:
+        expense["amount"] = int(expense["amount"])
+
+    return expenses
+
+
+def get_expenses(month: str | None = None) -> list[dict]:
+    """讀取帳目，可依指定月份篩選。"""
+    expenses = read_expenses()
+
+    if month is None:
+        return expenses
+
+    return [
+        expense
+        for expense in expenses
+        if expense["date"][:7] == month
+    ]
+
+# ---------- Agent 工具 ----------
 @function_tool
 def add_expense(
     item: str,
@@ -88,15 +113,8 @@ def list_recent_expenses(n: int = 5) -> list[dict]:
         return []
 
     # 2. 讀取 CSV
-    with open(CSV_PATH, "r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        expenses = list(reader)
+    expenses = read_expenses()
 
-    # 3. 將金額轉換成整數
-    for expense in expenses:
-        expense["amount"] = int(expense["amount"])
-
-    # 4. 取出最後 N 筆，最新的排在最前面
     return expenses[-n:][::-1]
 
 
@@ -107,9 +125,7 @@ def delete_last_expense() -> dict:
     並回傳被刪除的帳目。
     """
 
-    with open(CSV_PATH, "r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        expenses = list(reader)
+    expenses = read_expenses()
 
     if not expenses:
         return {"error": "帳本沒有任何紀錄"}
@@ -125,80 +141,63 @@ def delete_last_expense() -> dict:
         writer.writeheader()
         writer.writerows(expenses)
     
-    deleted_expense["amount"] = int(deleted_expense["amount"])
     
     return deleted_expense
 
 
 @function_tool
-def monthly_summary(month: str) -> dict:
-    """
-    統計指定月份的各分類花費及總金額。
+def category_summary(month: str | None = None) -> dict:
+    """統計各分類花費，可指定月份或統計全期間。
 
     Args:
-        month: 指定月份，格式為 YYYY-MM。
+        month: 指定月份 YYYY-MM，未提供則統計全期間。
     """
-
     categories = {
-    "餐飲": 0,
-    "交通": 0,
-    "日用品": 0,
-    "娛樂": 0,
-    "帳單": 0,
-    "其他": 0
-}
+        "餐飲": 0,
+        "交通": 0,
+        "日用品": 0,
+        "娛樂": 0,
+        "帳單": 0,
+        "其他": 0,
+    }
 
-    with open(CSV_PATH, "r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        expenses = list(reader)
+    expenses = get_expenses(month)
 
-        # 只有符合指定月份的帳目才進行統計
     for expense in expenses:
-        if expense["date"][:7] == month:
-            category = expense["category"]
-            amount = int(expense["amount"])
-            categories[category] += amount
-
-    total = sum(categories.values())
+        category = expense["category"]
+        amount = expense["amount"]
+        categories[category] += amount
 
     return {
         "month": month,
         "categories": categories,
-        "total": total
+        "total": sum(categories.values()),
     }
 
 
 @function_tool
-def member_summary() -> dict:
+def member_summary(month: str | None = None) -> dict:
+    """統計家庭成員花費，可指定月份或統計全期間。
+
+    Args:
+        month: 指定月份 YYYY-MM，未提供則統計全期間。
     """
-    統計帳本中每位家庭成員的全期間累計花費。
-    不支援依月份或日期篩選。
-    """
-    # 1. 建立空字典
     members = {}
+    expenses = get_expenses(month)
 
-    # 2. 讀取 CSV
-    with open(CSV_PATH, "r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        expenses = list(reader)
-
-    # 3. 統計每位成員的花費
     for expense in expenses:
         member = expense["member"]
-        amount = int(expense["amount"])
+        amount = expense["amount"]
 
         if member not in members:
             members[member] = 0
 
         members[member] += amount
 
-    # 4. 計算家庭總花費
-    total = sum(members.values())
-
-    # 5. 回傳結果
     return {
+        "month": month,
         "members": members,
-        "total": total
+        "total": sum(members.values()),
     }
 
 
@@ -211,14 +210,12 @@ def monthly_member_summary(month: str) -> dict:
     """
     members = {}
 
-    with open(CSV_PATH, "r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        expenses = list(reader)
+    expenses = read_expenses()
 
     for expense in expenses:
         if expense["date"][:7] == month:
             member = expense["member"]
-            amount = int(expense["amount"])
+            amount = expense["amount"]
 
             if member not in members:
                 members[member] = 0

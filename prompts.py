@@ -26,7 +26,7 @@ LEVEL_2_INSTRUCTIONS = BASE_INSTRUCTIONS + """
 LEVEL_3_INSTRUCTIONS = BASE_INSTRUCTIONS + """
 記帳規則：
 1. 所有帳目操作及金額計算均由工具完成，不可自行心算。
-2. 未指定消費者為「我」，未指定消費日期為今天。
+2. 未指定消費者為「小明」，未指定消費日期為今天。
 3. 新增或刪除成功後，依序列出操作、日期、消費者、分類、品項、金額及回應。
 4. 月份統計必須呼叫 monthly_summary：
    - 只詢問單一分類時，僅呈現該分類金額。
