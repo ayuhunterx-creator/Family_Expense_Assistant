@@ -1,6 +1,7 @@
 from common import MODEL
 from dataclasses import dataclass
 from agents import Agent
+from guardrails import topic_guard
 from rules_tools import search_house_rules
 from report_tools import MonthlyReport
 import expense_tools
@@ -91,7 +92,8 @@ def build_team() -> AgentTeam:
         accountant_agent, 
         analyst_agent, 
         budget_agent, 
-        saving_coach_agent]
+        saving_coach_agent],
+    input_guardrails=[topic_guard],
 )
 
 

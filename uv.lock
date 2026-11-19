@@ -355,6 +355,9 @@ requires-dist = [
     { name = "tzdata", specifier = ">=2026.6" },
 ]
 
+[package.metadata.requires-dev]
+dev = []
+
 [[package]]
 name = "griffelib"
 version = "2.4.1"
