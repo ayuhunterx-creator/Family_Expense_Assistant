@@ -3,19 +3,24 @@ import json
 from pathlib import Path
 from agents import SQLiteSession
 
-DB_PATH = Path(__file__).resolve().parent / "data" / "chat_history.db"
-
-session = SQLiteSession("family_001", DB_PATH)
+BASE = Path(__file__).resolve().parent
+DB_PATH = BASE / "data" / "chat_history.db"
 
 
 async def main():
+    session = SQLiteSession(
+        "family_assistant_001",
+        DB_PATH,
+    )
+
     items = await session.get_items()
 
     print(json.dumps(
         items,
         ensure_ascii=False,
-        indent=4
+        indent=2,
     ))
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
