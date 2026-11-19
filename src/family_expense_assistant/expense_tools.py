@@ -4,7 +4,7 @@ from datetime import date
 from typing import Literal
 from agents import function_tool
 
-CSV_PATH = Path(__file__).resolve().parent / "data" / "expenses.csv"
+CSV_PATH = Path(__file__).resolve().parents[2] / "data" / "expenses.csv"
 
 Category = Literal[
     "餐飲",

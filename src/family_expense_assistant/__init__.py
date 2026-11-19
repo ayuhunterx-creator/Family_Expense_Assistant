@@ -1,3 +1,3 @@
-def main() -> None:
-    print("Hello from family-expense-assistant!")
+from .main import main
+
 

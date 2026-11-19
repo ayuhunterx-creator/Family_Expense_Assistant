@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict
-from expense_tools import get_expenses, Category
+from .expense_tools import get_expenses, Category
 from pathlib import Path
 
 # ---------- 工具 ----------
@@ -23,7 +23,7 @@ def get_biggest_expense(month: str) -> dict | None:
     return max(expenses, key=lambda expense: expense["amount"])
 
 
-RULES_PATH = Path(__file__).resolve().parent / "data" / "house_rules.md"
+RULES_PATH = Path(__file__).resolve().parents[2] / "data" / "house_rules.md"
 
 def read_house_rules() -> str:
     """讀取家庭家規 Markdown 文件。"""

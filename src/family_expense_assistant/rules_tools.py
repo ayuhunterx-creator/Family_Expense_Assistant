@@ -1,5 +1,5 @@
 from agents import Agent, Runner, FileSearchTool, ModelSettings, function_tool
-from common import MODEL, VECTOR_STORE_ID
+from .common import MODEL, VECTOR_STORE_ID
 
 if not VECTOR_STORE_ID:
     raise RuntimeError("請在 .env 設定 VECTOR_STORE_ID")

@@ -7,7 +7,7 @@ from agents import (
     TResponseInputItem,
 )
 from pydantic import BaseModel, Field
-from common import MODEL
+from .common import MODEL
 
 
 

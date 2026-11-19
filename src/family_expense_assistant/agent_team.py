@@ -1,11 +1,11 @@
-from common import MODEL
+from .common import MODEL
 from dataclasses import dataclass
 from agents import Agent
-from guardrails import topic_guard
-from rules_tools import search_house_rules
-from report_tools import MonthlyReport
-import expense_tools
-from prompts import (
+from .guardrails import topic_guard
+from .rules_tools import search_house_rules
+from .report_tools import MonthlyReport
+from . import expense_tools
+from .prompts import (
     get_instructions_with_date,
     ACCOUNTANT_INSTRUCTIONS,
     ANALYST_INSTRUCTIONS,

@@ -3,7 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv(Path(__file__).resolve().parent / ".env")
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 MODEL = os.getenv("OPENAI_MODEL", "").strip()
 

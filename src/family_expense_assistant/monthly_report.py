@@ -1,9 +1,9 @@
 from pathlib import Path
 from agents import Runner
-from agent_team import AgentTeam
-from report_tools import MonthlyReport, build_monthly_report
+from .agent_team import AgentTeam
+from .report_tools import MonthlyReport, build_monthly_report
 
-BASE = Path(__file__).resolve().parent
+BASE = Path(__file__).resolve().parents[2]
 
 
 def make_report(month: str, team: AgentTeam) -> MonthlyReport:

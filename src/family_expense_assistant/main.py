@@ -4,16 +4,16 @@ from agents import (
     SQLiteSession,
     InputGuardrailTripwireTriggered,
 )
-from agent_team import build_team
+from .agent_team import build_team
 import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from monthly_report import make_report, show_report
+from .monthly_report import make_report, show_report
 
 
 
-BASE = Path(__file__).resolve().parent
+BASE = Path(__file__).resolve().parents[2]
 
 
 def main():
