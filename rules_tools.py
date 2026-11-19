@@ -18,15 +18,7 @@ rules_agent = Agent(
 
 @function_tool
 async def search_house_rules(question: str) -> str:
-    """搜尋家規文件，回答預算、零用錢及消費規則問題。
-
-    Args:
-        question: 需要查閱家規的問題。
-    """
-    confirm = input("\n需要搜尋家規，是否允許？(y/n): ").strip().lower()
-
-    if confirm != "y":
-        return "使用者取消搜尋，不可編造家規。"
+    """搜尋家規文件，回答預算、零用錢及消費規則問題。"""
 
     result = await Runner.run(rules_agent, question)
     return result.final_output

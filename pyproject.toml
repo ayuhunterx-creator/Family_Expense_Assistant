@@ -1,5 +1,5 @@
 [project]
-name = "20261112"
+name = "family-expense-assistant"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -9,10 +9,11 @@ dependencies = [
     "openai-agents>=0.24.0",
     "pydantic>=2.14.3",
     "python-dotenv>=1.2.4",
+    "tzdata>=2026.6",
 ]
 
 [project.scripts]
-20261112 = "20261112:main"
+family-expense = "family_expense_assistant:main"
 
 [build-system]
 requires = ["uv_build>=0.13.1,<0.14.0"]

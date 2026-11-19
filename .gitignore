@@ -13,3 +13,6 @@ wheels/
 # 對話記憶
 data/chat_history.db
 data/chat_history.db-*
+
+# Generated monthly reports
+data/report_*.json
