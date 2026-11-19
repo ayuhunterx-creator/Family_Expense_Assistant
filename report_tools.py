@@ -5,7 +5,7 @@ from pathlib import Path
 # ---------- 工具 ----------
 def get_monthly_expenses(month: str) -> list[dict]:
     """取得指定月份的所有消費紀錄。"""
-    expenses = read_expenses()
+    return get_expenses(month)
 
     return [
         expense
@@ -71,6 +71,12 @@ class ReportLine(BaseModel):
     budget: int = Field(description="家規規定的每月預算，來自 get_category_budgets，不可自行編造")
     is_over_budget: bool = Field(description="已花金額是否超過預算，由 Python 計算")
 
+class BiggestExpense(BaseModel):
+    date: str
+    member: str
+    category: Category
+    item: str
+    amount: int
 
 class MonthlyReport(BaseModel):
     month: str = Field(description="月份 YYYY-MM")
@@ -78,3 +84,45 @@ class MonthlyReport(BaseModel):
     lines: list[ReportLine] = Field(description="六個分類的支出與預算明細")
     biggest_item: BiggestExpense | None = Field(description="本月最大筆的花費，來自 get_biggest_expense；無消費紀錄時為 null")
     advice: list[str] = Field(max_length=3,description="根據實際消費資料提出最多三項具體省錢建議")
+
+
+def build_monthly_report(month: str) -> MonthlyReport:
+    """組合指定月份的月報資料。"""
+
+    budgets = get_category_budgets()
+    expenses = get_expenses(month)
+    biggest = get_biggest_expense(month)
+
+    spent_by_category = {category: 0 for category in budgets}
+
+    for expense in expenses:
+        category = expense["category"]
+        spent_by_category[category] += expense["amount"]
+
+    print("分類支出：", spent_by_category)
+    lines = []
+
+    for category, budget in budgets.items():
+        spent = spent_by_category[category]
+
+        line = ReportLine(
+            category=category,
+            spent=spent,
+            budget=budget,
+            is_over_budget=spent > budget
+        )
+
+        lines.append(line)
+
+    return MonthlyReport(
+    month=month,
+    total=sum(line.spent for line in lines),
+    lines=lines,
+    biggest_item=BiggestExpense(**biggest) if biggest else None,
+    advice=[]
+    )
+
+if __name__ == "__main__":
+    report = build_monthly_report("2026-11")
+    print(report.model_dump_json(indent=2))
+

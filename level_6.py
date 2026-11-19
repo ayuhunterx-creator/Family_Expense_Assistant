@@ -1,26 +1,34 @@
 import re
-import level_5 as team
-from prompts import get_instructions_with_date
+from copy import copy
 from datetime import date
 from pathlib import Path
-from copy import copy
-from pydantic import BaseModel, Field
-from agents import (input_guardrail,
-    Agent, Runner, SQLiteSession,
+
+import level_5 as team
+from agents import (
+    Agent,
+    Runner,
+    SQLiteSession,
+    input_guardrail,
     GuardrailFunctionOutput,
     RunContextWrapper,
-    InputGuardrailTripwireTriggered)
-from agents.items import TResponseInputItem
+    InputGuardrailTripwireTriggered,
+    TResponseInputItem,
+)
+from pydantic import BaseModel, Field
+
 from common import MODEL
-from level_5 import saving_coach_agent
+from prompts import get_instructions_with_date
 from report_tools import MonthlyReport, build_monthly_report
 
 
-# ---------- 路徑設定 ----------
+# ---------- 路徑與 Session ----------
 BASE = Path(__file__).resolve().parent
-session = SQLiteSession("family_level6_001",BASE / "data" / "chat_history.db")
+session = SQLiteSession(
+    "family_level6_001",
+    BASE / "data" / "chat_history.db"
+)
 
-# ---------- SavingCoach 結構化輸出 ----------
+# ---------- SavingCoach ----------
 class SavingAdvice(BaseModel):
     advice: list[str] = Field(
         max_length=3,
@@ -28,15 +36,12 @@ class SavingAdvice(BaseModel):
     )
 
 
-# ---------- SavingCoach ----------
-report_coach = copy(saving_coach_agent)
-
+report_coach = copy(team.saving_coach_agent)
 report_coach.tools = []
 report_coach.output_type = SavingAdvice
 
 report_coach.instructions = """
 你是家庭記帳小管家的省錢教練。
-
 根據使用者提供的月報資料，提出最多三項具體省錢建議。
 
 規則：
@@ -53,7 +58,6 @@ report_agent = Agent(
     model=MODEL,
     instructions="""
 你是家庭記帳小管家的月報分析師。
-
 根據提供的完整月報資料，輸出符合 MonthlyReport
 結構的月報。
 
@@ -75,7 +79,7 @@ def make_report(month: str) -> MonthlyReport:
     # 1. Python 建立月報
     report = build_monthly_report(month)
 
-    # 2. SavingCoach 產生省錢建議
+    # 2. SavingCoach 提出建議
     coach_result = Runner.run_sync(
         report_coach,
         input=report.model_dump_json(indent=2)
@@ -118,7 +122,7 @@ def make_report(month: str) -> MonthlyReport:
     return report
 
 
-# ---------- 護欄 ----------
+# ---------- Input Guardrail ----------
 class TopicCheck(BaseModel):
     on_topic: bool = Field(description="最後一句話是否屬於家庭記帳、花費、預算的服務範圍")
     asks_investment: bool = Field(description="是否在要求推薦或評價股票、基金、ETF、加密貨幣等投資標的")
@@ -130,37 +134,20 @@ topic_checker = Agent(
     model=MODEL,
     instructions="""
 你是家庭記帳小管家的輸入安全檢查員。
+只判斷使用者最新的輸入，不回答問題。
 
-判斷使用者最後一句話是否與家庭記帳、花費、
-預算、儲蓄、省錢建議有關。
-
-規則：
-1. 正常記帳、支出查詢、預算及儲蓄問題應放行。
-2. 無關的閒聊、寫作業等問題應阻擋。
-3. 要求推薦或評價股票、基金、ETF、加密貨幣等投資標的，
-   一律判定 asks_investment=True。
-4. 即使問題涉及預算，只要要求投資標的推薦仍要阻擋。
-5. 只判斷使用者最新輸入，不回答使用者的問題。
+判斷規則：
+1. 記帳、支出查詢、預算、儲蓄、省錢建議應放行。
+2. 無關的閒聊、作業或其他問題應阻擋。
+3. 要求推薦、挑選或評價股票、基金、ETF、
+   加密貨幣等投資標的，一律設定 asks_investment=True。
+4. 即使問題涉及家庭預算，只要要求推薦投資標的，
+   仍必須阻擋。
+5. 一般記帳中的股票交易費用紀錄，不等於要求投資推薦。
+6. 使用繁體中文提供簡短判斷理由。
 """,
     output_type=TopicCheck,
 )
-
-from agents import InputGuardrailTripwireTriggered
-
-try:
-    result = Runner.run_sync(
-        team.front_desk_agent,
-        user_input,
-        session=session
-    )
-
-    print("回答的 Agent：", result.last_agent.name)
-    print(result.final_output)
-
-except InputGuardrailTripwireTriggered:
-    print("小管家：我只能協助家庭記帳、花費查詢、預算與省錢建議。")
-
-team.front_desk_agent.input_guardrails = [topic_guard]
 
 @input_guardrail(run_in_parallel=False)
 async def topic_guard(
@@ -168,6 +155,7 @@ async def topic_guard(
     agent: Agent,
     input: str | list[TResponseInputItem],
 ) -> GuardrailFunctionOutput:
+    """檢查使用者輸入是否符合家庭記帳服務範圍。"""
 
     result = await Runner.run(
         topic_checker,
@@ -177,30 +165,90 @@ async def topic_guard(
 
     check = result.final_output
 
+    blocked = (
+        not check.on_topic
+        or check.asks_investment
+    )
+
     return GuardrailFunctionOutput(
         output_info=check,
-        tripwire_triggered=(
-            not check.on_topic
-            or check.asks_investment
-        ),
+        tripwire_triggered=blocked,
+    )
+
+# 註冊護欄：必須放在 topic_guard 定義之後
+team.front_desk_agent.input_guardrails = [topic_guard]
+
+
+# ---------- 更新 Agent 日期 ----------
+def update_agent_dates():
+    """每輪重新設定 Agent instructions 的日期。"""
+
+    team.accountant_agent.instructions = get_instructions_with_date(
+        team.ACCOUNTANT_INSTRUCTIONS
+    )
+    team.analyst_agent.instructions = get_instructions_with_date(
+        team.ANALYST_INSTRUCTIONS
+    )
+    team.budget_agent.instructions = get_instructions_with_date(
+        team.BUDGET_INSTRUCTIONS
+    )
+    team.saving_coach_agent.instructions = get_instructions_with_date(
+        team.SAVING_COACH_INSTRUCTIONS
+    )
+    team.front_desk_agent.instructions = get_instructions_with_date(
+        team.FRONT_DESK_INSTRUCTIONS
     )
 
 
 
+# ---------- 顯示月報 ----------
+def show_report(report: MonthlyReport):
+    print(f"\n【月報員】{report.month}")
+    print(f"總支出：{report.total:,} 元")
 
-# ---------- 測試入口 ----------
-if __name__ == "__main__":
+    print("\n六分類支出：")
+
+    for line in report.lines:
+        print(
+            f"{line.category}："
+            f"已花 {line.spent:,} 元 / "
+            f"預算 {line.budget:,} 元 / "
+            f"超支：{line.is_over_budget}"
+        )
+
+    print("\n最大單筆消費：")
+
+    if report.biggest_item:
+        print(
+            f"{report.biggest_item.item}："
+            f"{report.biggest_item.amount:,} 元"
+        )
+    else:
+        print("本月沒有消費紀錄")
+
+    print("\n省錢建議：")
+
+    for advice in report.advice:
+        print("-", advice)
+
+
+# ---------- 主程式 ----------
+def main():
 
     while True:
-        user_input = input("You: ").strip()
+        user_input = input("\nYou: ").strip()
 
         if user_input.lower() in ("exit", "結束"):
             break
 
-        if user_input.startswith("/月報"):
-            parts = user_input.split()
+        if not user_input:
+            continue
 
-            # 沒有指定月份時，使用當前年月
+        # 月報指令
+        parts = user_input.split()
+
+        if parts[0] == "/月報":
+
             if len(parts) == 1:
                 month = date.today().strftime("%Y-%m")
 
@@ -211,60 +259,38 @@ if __name__ == "__main__":
                 print("格式錯誤，請使用 /月報 YYYY-MM")
                 continue
 
-            # 檢查月份格式
-            if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", month):
+            if not re.fullmatch(
+                r"\d{4}-(0[1-9]|1[0-2])", month
+            ):
                 print("月份格式錯誤，例如：/月報 2026-11")
                 continue
 
             report = make_report(month)
+            show_report(report)
 
-            print(f"\n【月報員】{report.month}")
-            print(f"總支出：{report.total:,} 元")
-
-            print("\n六分類支出：")
-            for line in report.lines:
-                print(
-                    f"{line.category}："
-                    f"已花 {line.spent:,} 元 / "
-                    f"預算 {line.budget:,} 元 / "
-                    f"超支：{line.is_over_budget}"
-                )
-
-            print("\n最大單筆消費：")
-            if report.biggest_item:
-                print(
-                    f"{report.biggest_item.item}："
-                    f"{report.biggest_item.amount:,} 元"
-                )
-            else:
-                print("本月沒有消費紀錄")
-
-            print("\n省錢建議：")
-            for advice in report.advice:
-                print("-", advice)
-
+        # 一般問題交給 FrontDesk
         else:
-            team.accountant_agent.instructions = get_instructions_with_date(
-                team.ACCOUNTANT_INSTRUCTIONS
-            )
-            team.analyst_agent.instructions = get_instructions_with_date(
-                team.ANALYST_INSTRUCTIONS
-            )
-            team.budget_agent.instructions = get_instructions_with_date(
-                team.BUDGET_INSTRUCTIONS
-            )
-            team.saving_coach_agent.instructions = get_instructions_with_date(
-                team.SAVING_COACH_INSTRUCTIONS
-            )
-            team.front_desk_agent.instructions = get_instructions_with_date(
-                team.FRONT_DESK_INSTRUCTIONS
-            )
+            update_agent_dates()
 
-            result = Runner.run_sync(
-                team.front_desk_agent,
-                user_input,
-                session=session
-            )
+            try:
+                result = Runner.run_sync(
+                    team.front_desk_agent,
+                    user_input,
+                    session=session,
+                )
 
-            print("回答的 Agent：", result.last_agent.name)
-            print(result.final_output)
+                print("回答的 Agent：", result.last_agent.name)
+                print(result.final_output)
+
+            except InputGuardrailTripwireTriggered as error:
+                check = error.guardrail_result.output.output_info
+
+                print(
+                    "小管家：我只能協助家庭記帳、"
+                    "花費查詢、預算與省錢建議。"
+                )
+                print("阻擋原因：", check.reason)
+
+
+if __name__ == "__main__":
+    main()
